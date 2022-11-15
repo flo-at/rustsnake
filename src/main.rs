@@ -1,6 +1,8 @@
 mod terminal;
 mod types;
 
+// TODO implement signal handler (sigaction from signal.h)
+
 use crate::terminal::{Color, Pixel};
 use crate::types::{Dimensions, Matrix2, Position};
 
@@ -11,6 +13,12 @@ struct FrameBuffer {
     buffer1_is_front: bool,
     command_cache: Vec<u8>,
 }
+
+const FOOD_CHAR: char = '◈';
+const FOOD_COLOR: Color = Color::Yellow;
+
+const WALL_CHAR: char = '█';
+const WALL_COLOR: Color = Color::Yellow;
 
 impl FrameBuffer {
     pub fn new(dimensions: &Dimensions) -> Self {
@@ -28,7 +36,7 @@ impl FrameBuffer {
     }
 
     fn command_cache_size(dimensions: &Dimensions) -> usize {
-        dimensions.x * dimensions.y * (1 + 5 + 10)
+        dimensions.x * dimensions.y * (4 + 5 + 10)
     }
 
     fn update_command_cache(&mut self) -> &[u8] {
@@ -38,12 +46,15 @@ impl FrameBuffer {
         };
 
         let mut position = Position::new(0, 0);
+        let mut last_position = position.clone();
         let mut last_color = Color::default();
         let mut i: usize = 0;
         for (pixel1, pixel2) in front_buffer.iter().zip(back_buffer.iter()) {
             let mut force_draw_char = false;
             if *pixel1 != *pixel2 {
-                i += position.encode_ascii(&mut self.command_cache[i..]);
+                if position.y != last_position.y || position.x != last_position.x + 1 {
+                    i += position.encode_ascii(&mut self.command_cache[i..]);
+                }
             }
             if pixel1.color != pixel2.color {
                 if pixel1.color != last_color {
@@ -53,8 +64,8 @@ impl FrameBuffer {
                 force_draw_char = true;
             }
             if force_draw_char || pixel1.character != pixel2.character {
-                self.command_cache[i] = pixel1.character;
-                i += 1;
+                i += pixel1.encode_ascii(&mut self.command_cache[i..]);
+                last_position = position.clone();
             }
             position.x += 1;
             if position.x == self.dimensions.x {
@@ -88,23 +99,21 @@ impl FrameBuffer {
 fn draw_border(frame_buffer: &mut FrameBuffer) {
     let dimensions = frame_buffer.dimensions().clone();
     let back_buffer = frame_buffer.back_buffer();
-    const CHARACTER: u8 = 0x2b;
-    const COLOR: Color = Color::Yellow;
     for x in 0..dimensions.x {
         back_buffer.set(
             x,
             0,
             Pixel {
-                character: CHARACTER,
-                color: COLOR,
+                character: WALL_CHAR,
+                color: WALL_COLOR,
             },
         );
         back_buffer.set(
             x,
             dimensions.y - 1,
             Pixel {
-                character: CHARACTER,
-                color: COLOR,
+                character: WALL_CHAR,
+                color: WALL_COLOR,
             },
         );
     }
@@ -113,16 +122,16 @@ fn draw_border(frame_buffer: &mut FrameBuffer) {
             0,
             y,
             Pixel {
-                character: CHARACTER,
-                color: COLOR,
+                character: WALL_CHAR,
+                color: WALL_COLOR,
             },
         );
         back_buffer.set(
             dimensions.x - 1,
             y,
             Pixel {
-                character: CHARACTER,
-                color: COLOR,
+                character: WALL_CHAR,
+                color: WALL_COLOR,
             },
         );
     }
@@ -141,7 +150,7 @@ fn main() {
             10 + i,
             10,
             Pixel {
-                character: 0x2b,
+                character: '◉',
                 color: Color::Green,
             },
         );
@@ -149,7 +158,7 @@ fn main() {
             11 + i,
             11,
             Pixel {
-                character: 0x2b,
+                character: '◉',
                 color: Color::Red,
             },
         );

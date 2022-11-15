@@ -98,14 +98,21 @@ impl Color {
 
 #[derive(Clone, PartialEq, Copy)]
 pub struct Pixel {
-    pub character: u8, // TODO char -> encode_utf8
+    pub character: char, // TODO char -> encode_utf8
     pub color: Color,
+}
+
+impl Pixel {
+    pub fn encode_ascii(&self, buffer: &mut [u8]) -> usize {
+        let res = self.character.encode_utf8(buffer);
+        res.len()
+    }
 }
 
 impl std::default::Default for Pixel {
     fn default() -> Self {
         Pixel {
-            character: 0x20,
+            character: ' ',
             color: Color::default(),
         }
     }
