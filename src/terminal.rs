@@ -11,6 +11,7 @@ type cc_t = c_uchar;
 
 const NCCS: usize = 32;
 const ECHO: tcflag_t = 0o000010;
+const ICANON: tcflag_t = 0o0000002;
 
 #[repr(C)]
 struct Termios {
@@ -167,7 +168,7 @@ pub fn hide_cursor() {
     print!("\x1b\x5b?25l");
 }
 
-pub fn set_echo(enable: bool) {
+pub fn set_mode(enable: bool) {
     use std::mem;
     use std::os::unix::io::AsRawFd;
     let stdin_fd = std::io::stdin().as_raw_fd();
@@ -178,9 +179,9 @@ pub fn set_echo(enable: bool) {
     };
 
     if enable {
-        termios.c_lflag |= ECHO;
+        termios.c_lflag |= ECHO | ICANON;
     } else {
-        termios.c_lflag &= !ECHO;
+        termios.c_lflag &= !(ECHO | ICANON);
     }
     unsafe {
         tcsetattr(stdin_fd, 0, std::ptr::addr_of!(termios));

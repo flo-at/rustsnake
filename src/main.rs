@@ -5,6 +5,9 @@ mod types;
 
 // TODO implement signal handler (sigaction from signal.h)
 
+use std::io::Read;
+use std::os::fd::AsRawFd;
+
 use crate::cyclic_buffer::CyclicBuffer;
 use crate::terminal::{Color, Pixel};
 use crate::types::{Dimensions, Matrix2, Position};
@@ -17,7 +20,7 @@ struct FrameBuffer {
     command_cache: Vec<u8>,
 }
 
-const FOOD_CHAR: char = '◈';
+const FOOD_CHAR: char = 'x';
 const FOOD_COLOR: Color = Color::Green;
 const FOOD_SCORE: usize = 100;
 
@@ -178,11 +181,21 @@ fn draw_speed(speed: usize, dimensions: &Dimensions, frame_buffer: &mut FrameBuf
     }
 }
 
+#[derive(PartialEq, Clone, Copy)]
 enum Direction {
     Up,
     Down,
     Left,
     Right,
+}
+
+impl Direction {
+    fn is_opposite(&self, other: Direction) -> bool {
+        *self == Self::Up && other == Self::Down
+            || *self == Self::Down && other == Self::Up
+            || *self == Self::Left && other == Self::Right
+            || *self == Self::Right && other == Self::Left
+    }
 }
 
 struct Snake {
@@ -267,7 +280,15 @@ impl Snake {
 
     fn alive(&self, dimensions: &Dimensions) -> bool {
         let head = self.segments.iter().last().unwrap();
-        head.x > 1 && head.x < dimensions.x - 1 && head.y > 1 && head.y < dimensions.y - 1
+        let head_id = self.segments.count() - 1;
+        let hit_wall =
+            head.x < 1 || head.x >= dimensions.x - 1 || head.y < 1 || head.y >= dimensions.y - 1;
+        let bit_self = self
+            .segments
+            .iter()
+            .enumerate()
+            .any(|(id, x)| x == head && id != head_id);
+        !hit_wall && !bit_self
     }
 
     fn eat(&self, food: &Food) -> bool {
@@ -284,20 +305,20 @@ impl Food {
     fn new<'a, T: random::RandomNumberEngine>(
         dimensions: &Dimensions,
         rng: &mut T,
-        blocked_fields: &mut impl core::iter::Iterator<Item = &'a Position>,
+        blocked_fields: &mut (impl core::iter::Iterator<Item = &'a Position> + Clone),
     ) -> Self
     where
         u32: From<<T as random::RandomNumberEngine>::ResultType>,
     {
         let fields_total = (dimensions.x - 2) * (dimensions.y - 2);
         let rand: u32 = rng.get().into();
-        let rand: usize = rand as usize % (fields_total - blocked_fields.count());
+        let rand: usize = rand as usize % (fields_total - blocked_fields.clone().count());
         let mut free_fields: Vec<Position> = Vec::new();
         free_fields.reserve_exact(fields_total);
         for y in 1..dimensions.y - 1 {
             for x in 1..dimensions.x - 1 {
                 let position = Position { x, y };
-                if !blocked_fields.any(|x| *x == position) {
+                if !blocked_fields.clone().any(|x| *x == position) {
                     free_fields.push(Position { x, y });
                 }
             }
@@ -333,25 +354,35 @@ impl Food {
 }
 
 fn get_direction_from_stdin() -> Option<Direction> {
+    let mut stdin = std::io::stdin();
     let mut direction: Option<Direction> = None;
-    if let Ok(n) = terminal::get_bytes_at_stdin() {
-        use std::io::Read;
-        for _ in 0..n {
-            let stdin = std::io::stdin().lock();
-            match stdin.bytes().next().unwrap() {
-                Ok(b'w') => direction = Some(Direction::Up),
-                Ok(b's') => direction = Some(Direction::Down),
-                Ok(b'a') => direction = Some(Direction::Left),
-                Ok(b'd') => direction = Some(Direction::Right),
-                _ => (),
-            }
+
+    loop {
+        let mut poll_array = [filedescriptor::pollfd {
+            fd: stdin.as_raw_fd(),
+            events: filedescriptor::POLLIN,
+            revents: 0,
+        }];
+
+        let poll = filedescriptor::poll(&mut poll_array, Some(std::time::Duration::from_millis(0)));
+        if poll.unwrap_or(0) == 0 {
+            return direction;
+        }
+
+        let mut buffer = [0u8; 1];
+        stdin.read_exact(&mut buffer).unwrap();
+        match buffer[0] {
+            b'w' => direction = Some(Direction::Up),
+            b's' => direction = Some(Direction::Down),
+            b'a' => direction = Some(Direction::Left),
+            b'd' => direction = Some(Direction::Right),
+            _ => {}
         }
     }
-    direction
 }
 
 fn main() {
-    terminal::set_echo(false);
+    terminal::set_mode(false);
     terminal::reset();
     terminal::hide_cursor();
     let dimensions = terminal::get_terminal_dimenions().unwrap();
@@ -365,23 +396,27 @@ fn main() {
     let mut food = Food::new(&field_dimensions, &mut rng, &mut snake.segments());
     let mut speed = 0;
     loop {
+        if snake.tick(&food) {
+            food = Food::new(&field_dimensions, &mut rng, &mut snake.segments());
+            speed = std::cmp::min(speed + 5, 50);
+        }
         // TODO warum wird eine Zahl in der Score blaue (Farbe der Snake)?
         draw_border(&field_dimensions, &mut frame_buffer);
         draw_score(snake.score(), &dimensions, &mut frame_buffer);
         draw_speed(speed, &dimensions, &mut frame_buffer);
         snake.draw(&mut frame_buffer);
-        snake.direction = get_direction_from_stdin().unwrap_or(snake.direction);
+        let new_direction = get_direction_from_stdin().unwrap_or(snake.direction);
+        if !new_direction.is_opposite(snake.direction) {
+            snake.direction = new_direction;
+        }
         food.draw(&mut frame_buffer);
         frame_buffer.swap_buffers();
         std::thread::sleep(std::time::Duration::from_millis(100 - speed as u64));
-        if snake.tick(&food) {
-            food = Food::new(&field_dimensions, &mut rng, &mut snake.segments());
-            speed = std::cmp::min(speed + 10, 100); // TODO
-        }
         if !snake.alive(&field_dimensions) || snake.won() {
             break;
         }
     }
-    terminal::set_echo(true);
+    terminal::set_mode(true);
     terminal::reset();
+    println!("Final score: {}", snake.score());
 }

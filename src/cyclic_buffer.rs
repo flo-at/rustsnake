@@ -85,6 +85,7 @@ impl<T: Default + Clone> CyclicBuffer<T> {
     }
 }
 
+#[derive(Clone)]
 pub struct Iter<'a, T: Default + Clone> {
     buffer: &'a CyclicBuffer<T>,
     position: usize,
@@ -157,5 +158,19 @@ mod tests {
         assert_eq!(buf.pop(), Some(2));
         assert_eq!(buf.pop(), Some(3));
         assert_eq!(buf.pop(), Some(4));
+    }
+
+    #[test]
+    fn iter() {
+        let mut buf = CyclicBuffer::<u32>::new(3);
+        assert!(buf.push(1));
+        assert!(buf.push(2));
+        assert!(buf.push(3));
+        assert!(buf.full());
+        let mut iter = buf.iter();
+        assert_eq!(*iter.next().unwrap_or(&0), 1);
+        assert_eq!(*iter.next().unwrap_or(&0), 2);
+        assert_eq!(*iter.next().unwrap_or(&0), 3);
+        assert!(iter.next().is_none());
     }
 }
