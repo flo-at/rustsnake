@@ -24,8 +24,6 @@ pub use pcg32fast::PCG32Fast;
 /// This is a minimal implementation of the pcg32_fast PRNG from https://www.pcg-random.org.
 /// The internal state has 64 bit, so there are no 128 bit operations required.
 /// Fulfills the std::uniform_random_bit_generator concept but not the RandomNumberEngine C++ named requirement.
-/// @todo Die unteren beiden bits im seed werden ignoriert wenn ich das richtig verstehe (bleiben 62 bits). Hierfür muss
-///       ggf. ein check her.
 /// @todo Implement 64 bit generator if required.
 /// @see https://www.pcg-random.org
 mod pcg32fast {

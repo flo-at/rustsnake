@@ -1,21 +1,10 @@
-mod cyclic_buffer;
-mod random;
-mod terminal;
-mod types;
+use rustsnake::cyclic_buffer;
+use rustsnake::random;
+use rustsnake::terminal;
+use rustsnake::terminal::{Color, Pixel};
+use rustsnake::types::{Dimensions, Matrix2, Position};
 
 // TODO implement signal handler (sigaction from signal.h)
-
-use crate::cyclic_buffer::CyclicBuffer;
-use crate::terminal::{Color, Pixel};
-use crate::types::{Dimensions, Matrix2, Position};
-
-struct FrameBuffer {
-    dimensions: Dimensions,
-    buffer1: Matrix2<Pixel>,
-    buffer2: Matrix2<Pixel>,
-    buffer1_is_front: bool,
-    command_cache: Vec<u8>,
-}
 
 const FOOD_CHAR: char = 'x';
 const FOOD_COLOR: Color = Color::Green;
@@ -30,6 +19,14 @@ const SNAKE_COLOR: Color = Color::Blue;
 const SCORE_COLOR: Color = Color::Red;
 const SPEED_COLOR: Color = SCORE_COLOR;
 
+struct FrameBuffer {
+    dimensions: Dimensions,
+    buffer1: Matrix2<Pixel>,
+    buffer2: Matrix2<Pixel>,
+    buffer1_is_front: bool,
+    command_cache: Vec<u8>,
+}
+
 impl FrameBuffer {
     pub fn new(dimensions: &Dimensions) -> Self {
         Self {
@@ -39,10 +36,6 @@ impl FrameBuffer {
             buffer1_is_front: true,
             command_cache: vec![0; Self::command_cache_size(dimensions)],
         }
-    }
-
-    fn dimensions(&self) -> &Dimensions {
-        &self.dimensions
     }
 
     fn command_cache_size(dimensions: &Dimensions) -> usize {
@@ -98,7 +91,6 @@ impl FrameBuffer {
 
         self.buffer1_is_front = !self.buffer1_is_front;
         let command_cache = self.update_command_cache();
-        // TODO serialize diff_buffer into the u8 cache and print it
         let mut stdout = std::io::stdout().lock();
         stdout.write_all(command_cache).unwrap();
         stdout.flush().unwrap();
@@ -192,14 +184,14 @@ impl Direction {
 }
 
 struct Snake {
-    segments: CyclicBuffer<Position>,
+    segments: cyclic_buffer::CyclicBuffer<Position>,
     pub direction: Direction,
     score: usize,
 }
 
 impl Snake {
     fn new(dimensions: &Dimensions) -> Self {
-        let mut segments = CyclicBuffer::new(Self::max_segments(dimensions));
+        let mut segments = cyclic_buffer::CyclicBuffer::new(Self::max_segments(dimensions));
         segments.push(Position {
             x: dimensions.x / 2,
             y: dimensions.y / 2,
@@ -317,20 +309,8 @@ impl Food {
             }
         }
         Self {
-            position: free_fields.into_iter().nth(rand as usize).unwrap(),
+            position: free_fields.into_iter().nth(rand).unwrap(),
         }
-    }
-
-    fn advance(position: &mut Position, dimensions: &Dimensions) {
-        position.x += 1;
-        if position.x == dimensions.x - 2 {
-            position.x = 1;
-            position.y += 1;
-        }
-    }
-
-    fn inside_snake(position: &Position, snake_segments: &[Position]) -> bool {
-        snake_segments.iter().any(|x| x == position)
     }
 
     fn draw(&self, frame_buffer: &mut FrameBuffer) {
@@ -347,7 +327,6 @@ impl Food {
 }
 
 fn get_direction_from_stdin(rx: &std::sync::mpsc::Receiver<u8>) -> Option<Direction> {
-    let mut stdin = std::io::stdin();
     let mut direction: Option<Direction> = None;
 
     for byte in rx.try_iter() {
