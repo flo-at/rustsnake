@@ -1,5 +1,6 @@
 #![allow(non_camel_case_types)]
 
+use crate::frame_buffer::{Color, Pixel};
 use crate::types::{Dimensions, Position};
 
 type c_int = i32;
@@ -31,7 +32,7 @@ extern "C" {
 
 const ESC: u8 = 0x1b;
 
-pub fn get_terminal_dimenions() -> Result<Dimensions, &'static str> {
+pub fn get_dimenions() -> Result<Dimensions, &'static str> {
     use std::mem;
 
     const TIOCGWINSZ: i32 = 0x5413;
@@ -61,19 +62,6 @@ pub fn get_terminal_dimenions() -> Result<Dimensions, &'static str> {
     })
 }
 
-#[derive(Default, Clone, PartialEq, Copy)]
-#[repr(u8)]
-pub enum Color {
-    #[default]
-    Default,
-    White,
-    Black,
-    Red,
-    Green,
-    Blue,
-    Yellow,
-}
-
 impl Color {
     pub fn encode_ascii(&self, buffer: &mut [u8]) -> usize {
         let color_code = match self {
@@ -95,12 +83,6 @@ impl Color {
         buffer[i] = 0x6d;
         i + 1
     }
-}
-
-#[derive(Clone, PartialEq, Copy)]
-pub struct Pixel {
-    pub character: char,
-    pub color: Color,
 }
 
 impl Pixel {
