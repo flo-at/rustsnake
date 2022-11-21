@@ -92,15 +92,6 @@ impl Pixel {
     }
 }
 
-impl std::default::Default for Pixel {
-    fn default() -> Self {
-        Pixel {
-            character: ' ',
-            color: Color::default(),
-        }
-    }
-}
-
 impl Position {
     pub fn encode_ascii(&self, buffer: &mut [u8]) -> usize {
         buffer[0] = ESC;

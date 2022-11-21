@@ -6,6 +6,15 @@ pub struct Pixel {
     pub color: Color,
 }
 
+impl std::default::Default for Pixel {
+    fn default() -> Self {
+        Pixel {
+            character: ' ',
+            color: Color::default(),
+        }
+    }
+}
+
 #[derive(Default, Clone, PartialEq, Copy)]
 #[repr(u8)]
 pub enum Color {
@@ -48,7 +57,7 @@ impl FrameBuffer {
             false => (&self.buffer2, &self.buffer1),
         };
 
-        let mut position = Position::new(0, 0);
+        let mut position = Position { x: 0, y: 0 };
         let mut last_position = position.clone();
         let mut last_color = Color::default();
         let mut i: usize = 0;
