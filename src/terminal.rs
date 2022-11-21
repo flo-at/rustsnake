@@ -61,25 +61,6 @@ pub fn get_terminal_dimenions() -> Result<Dimensions, &'static str> {
     })
 }
 
-pub fn get_bytes_at_stdin() -> Result<usize, &'static str> {
-    use std::mem;
-
-    const I_NREAD: c_int = 0x5301; // gibts wohl nicht mehr in Linux
-
-    use std::os::unix::io::AsRawFd;
-    let stdin_fd = std::io::stdin().as_raw_fd();
-
-    let n = unsafe {
-        let mut n = mem::MaybeUninit::<c_int>::uninit();
-        let res = ioctl(stdin_fd, I_NREAD, n.as_mut_ptr());
-        if res == -1 {
-            return Err("Could not get number of bytes waiting at stdin.");
-        }
-        n.assume_init()
-    };
-    Ok(n as usize)
-}
-
 #[derive(Default, Clone, PartialEq, Copy)]
 #[repr(u8)]
 pub enum Color {
@@ -118,7 +99,7 @@ impl Color {
 
 #[derive(Clone, PartialEq, Copy)]
 pub struct Pixel {
-    pub character: char, // TODO char -> encode_utf8
+    pub character: char,
     pub color: Color,
 }
 

@@ -18,12 +18,10 @@ impl<T: Default + Clone> CyclicBuffer<T> {
     pub fn count(&self) -> usize {
         if self.empty {
             0
+        } else if self.beyond_tail_index > self.head_index {
+            self.beyond_tail_index - self.head_index
         } else {
-            if self.beyond_tail_index > self.head_index {
-                self.beyond_tail_index - self.head_index
-            } else {
-                self.beyond_tail_index + self.capacity() - self.head_index
-            }
+            self.beyond_tail_index + self.capacity() - self.head_index
         }
     }
 
@@ -71,10 +69,7 @@ impl<T: Default + Clone> CyclicBuffer<T> {
         let head_index = self.head_index;
         self.head_index = self.increment(self.head_index);
         self.empty = self.head_index == self.beyond_tail_index;
-        Some(std::mem::replace(
-            &mut self.segments[head_index],
-            T::default(),
-        ))
+        Some(std::mem::take(&mut self.segments[head_index]))
     }
 
     pub fn iter(&self) -> Iter<'_, T> {

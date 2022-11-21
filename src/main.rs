@@ -5,9 +5,6 @@ mod types;
 
 // TODO implement signal handler (sigaction from signal.h)
 
-use std::io::Read;
-use std::os::fd::AsRawFd;
-
 use crate::cyclic_buffer::CyclicBuffer;
 use crate::terminal::{Color, Pixel};
 use crate::types::{Dimensions, Matrix2, Position};
@@ -64,10 +61,10 @@ impl FrameBuffer {
         let mut i: usize = 0;
         for (pixel1, pixel2) in front_buffer.iter().zip(back_buffer.iter()) {
             let mut force_draw_char = false;
-            if *pixel1 != *pixel2 {
-                if position.y != last_position.y || position.x != last_position.x + 1 {
-                    i += position.encode_ascii(&mut self.command_cache[i..]);
-                }
+            if *pixel1 != *pixel2
+                && (position.y != last_position.y || position.x != last_position.x + 1)
+            {
+                i += position.encode_ascii(&mut self.command_cache[i..]);
             }
             if pixel1.color != pixel2.color {
                 if pixel1.color != last_color {
@@ -103,7 +100,7 @@ impl FrameBuffer {
         let command_cache = self.update_command_cache();
         // TODO serialize diff_buffer into the u8 cache and print it
         let mut stdout = std::io::stdout().lock();
-        stdout.write(command_cache).unwrap();
+        stdout.write_all(command_cache).unwrap();
         stdout.flush().unwrap();
         self.back_buffer().clear();
     }
@@ -151,8 +148,7 @@ fn draw_border(dimensions: &Dimensions, frame_buffer: &mut FrameBuffer) {
 
 fn draw_score(score: usize, dimensions: &Dimensions, frame_buffer: &mut FrameBuffer) {
     let back_buffer = frame_buffer.back_buffer();
-    let mut i: usize = 0;
-    for character in format!("Score: {}", score).chars() {
+    for (i, character) in format!("Score: {}", score).chars().enumerate() {
         back_buffer.set(
             i + 1,
             dimensions.y - 1,
@@ -161,14 +157,12 @@ fn draw_score(score: usize, dimensions: &Dimensions, frame_buffer: &mut FrameBuf
                 color: SCORE_COLOR,
             },
         );
-        i += 1;
     }
 }
 
 fn draw_speed(speed: usize, dimensions: &Dimensions, frame_buffer: &mut FrameBuffer) {
     let back_buffer = frame_buffer.back_buffer();
-    let mut i: usize = 0;
-    for character in format!("Speed: {}", speed).chars().rev() {
+    for (i, character) in format!("Speed: {}", speed).chars().rev().enumerate() {
         back_buffer.set(
             dimensions.x - i - 2,
             dimensions.y - 1,
@@ -177,7 +171,6 @@ fn draw_speed(speed: usize, dimensions: &Dimensions, frame_buffer: &mut FrameBuf
                 color: SPEED_COLOR,
             },
         );
-        i += 1;
     }
 }
 
@@ -353,25 +346,12 @@ impl Food {
     }
 }
 
-fn get_direction_from_stdin() -> Option<Direction> {
+fn get_direction_from_stdin(rx: &std::sync::mpsc::Receiver<u8>) -> Option<Direction> {
     let mut stdin = std::io::stdin();
     let mut direction: Option<Direction> = None;
 
-    loop {
-        let mut poll_array = [filedescriptor::pollfd {
-            fd: stdin.as_raw_fd(),
-            events: filedescriptor::POLLIN,
-            revents: 0,
-        }];
-
-        let poll = filedescriptor::poll(&mut poll_array, Some(std::time::Duration::from_millis(0)));
-        if poll.unwrap_or(0) == 0 {
-            return direction;
-        }
-
-        let mut buffer = [0u8; 1];
-        stdin.read_exact(&mut buffer).unwrap();
-        match buffer[0] {
+    for byte in rx.try_iter() {
+        match byte {
             b'w' => direction = Some(Direction::Up),
             b's' => direction = Some(Direction::Down),
             b'a' => direction = Some(Direction::Left),
@@ -379,6 +359,7 @@ fn get_direction_from_stdin() -> Option<Direction> {
             _ => {}
         }
     }
+    direction
 }
 
 fn main() {
@@ -391,6 +372,17 @@ fn main() {
         y: dimensions.y - 1,
     };
     let mut rng = random::PCG32Fast::new(None);
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        use std::io::Read;
+        let mut stdin = std::io::stdin();
+        let mut buffer = [0u8; 1];
+        loop {
+            stdin.read_exact(&mut buffer).unwrap();
+            tx.send(*buffer.first().unwrap()).unwrap();
+        }
+    });
+
     let mut frame_buffer = FrameBuffer::new(&dimensions);
     let mut snake = Snake::new(&field_dimensions);
     let mut food = Food::new(&field_dimensions, &mut rng, &mut snake.segments());
@@ -405,7 +397,7 @@ fn main() {
         draw_score(snake.score(), &dimensions, &mut frame_buffer);
         draw_speed(speed, &dimensions, &mut frame_buffer);
         snake.draw(&mut frame_buffer);
-        let new_direction = get_direction_from_stdin().unwrap_or(snake.direction);
+        let new_direction = get_direction_from_stdin(&rx).unwrap_or(snake.direction);
         if !new_direction.is_opposite(snake.direction) {
             snake.direction = new_direction;
         }
