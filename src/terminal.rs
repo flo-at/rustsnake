@@ -123,12 +123,14 @@ pub fn hide_cursor() {
 }
 
 pub fn set_mode(enable: bool) {
-    use std::mem;
     use std::os::unix::io::AsRawFd;
     let stdin_fd = std::io::stdin().as_raw_fd();
     let mut termios = unsafe {
-        let mut termios = mem::MaybeUninit::<Termios>::uninit();
-        tcgetattr(stdin_fd, termios.as_mut_ptr());
+        let mut termios = std::mem::MaybeUninit::<Termios>::uninit();
+        let res = tcgetattr(stdin_fd, termios.as_mut_ptr());
+        if res != 0 {
+            panic!("tcgetattr failed.");
+        }
         termios.assume_init()
     };
 
@@ -138,6 +140,9 @@ pub fn set_mode(enable: bool) {
         termios.c_lflag &= !(ECHO | ICANON);
     }
     unsafe {
-        tcsetattr(stdin_fd, 0, std::ptr::addr_of!(termios));
+        let res = tcsetattr(stdin_fd, 0, &termios);
+        if res != 0 {
+            panic!("tcsetattr failed.");
+        }
     }
 }
