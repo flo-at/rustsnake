@@ -290,7 +290,6 @@ fn main() {
             food = Food::new(&field_dimensions, &mut rng, &mut snake.segments());
             speed = std::cmp::min(speed + 5, 50);
         }
-        // TODO warum wird eine Zahl in der Score blaue (Farbe der Snake)?
         draw_border(&field_dimensions, &mut frame_buffer);
         draw_score(snake.score(), &dimensions, &mut frame_buffer);
         draw_speed(speed, &dimensions, &mut frame_buffer);

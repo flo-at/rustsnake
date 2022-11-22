@@ -19,9 +19,13 @@ pub trait RandomNumberEngine: PartialEq {
 }
 
 /// Random number engine for 32 bit random numbers.
-/// This is a minimal implementation of the pcg32_fast PRNG from https://www.pcg-random.org.
+///
+/// This is a minimal implementation of the pcg32_fast PRNG from <https://www.pcg-random.org>.
 /// The internal state has 64 bit, so there are no 128 bit operations required.
-/// TODO: Implement 64 bit generator if required.
+///
+/// # TODO
+///
+/// * Implement 64 bit generator if required.
 #[derive(Debug)]
 pub struct PCG32Fast {
     state: <Self as RandomNumberEngine>::StateType,
