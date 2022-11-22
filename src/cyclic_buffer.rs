@@ -102,7 +102,7 @@ impl<'a, T: Default + Clone> core::iter::Iterator for Iter<'a, T> {
 
 #[cfg(test)]
 mod tests {
-    use super::CyclicBuffer;
+    use super::*;
 
     #[test]
     fn capacity() {
