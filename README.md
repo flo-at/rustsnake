@@ -1,5 +1,6 @@
 # RustSnake
-This is a simple terminal-based Snake game implemented in Rust without dependencies.
+This is a simple terminal-based Snake game implemented in Rust without dependencies.\
+Control the snake using W/S/A/D.
 
 ![Screenshot text](/media/screenshot.jpg?raw=true)
 
