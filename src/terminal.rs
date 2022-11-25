@@ -41,7 +41,7 @@ extern "C" {
 
 const ESC: u8 = 0x1b;
 
-pub fn get_dimenions() -> Result<Dimensions, &'static str> {
+pub fn get_dimensions() -> Result<Dimensions, &'static str> {
     use std::mem;
 
     #[cfg(target_os = "macos")]
