@@ -264,7 +264,7 @@ fn main() {
     terminal::set_mode(false);
     terminal::reset();
     terminal::hide_cursor();
-    let dimensions = terminal::get_dimenions().unwrap();
+    let dimensions = terminal::get_dimensions().unwrap();
     let field_dimensions = Dimensions {
         x: dimensions.x,
         y: dimensions.y - 1,

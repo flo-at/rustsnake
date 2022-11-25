@@ -4,14 +4,23 @@ use crate::frame_buffer::{Color, Pixel};
 use crate::types::{Dimensions, Position};
 
 type c_int = i32;
+#[cfg(target_os = "macos")]
+type c_ulong = u64;
+#[cfg(not(target_os = "macos"))]
 type c_uint = u32;
 type c_uchar = u8;
 
+#[cfg(target_os = "macos")]
+pub type tcflag_t = c_ulong;
+#[cfg(not(target_os = "macos"))]
 pub type tcflag_t = c_uint;
 type cc_t = c_uchar;
 
 const NCCS: usize = 32;
 const ECHO: tcflag_t = 0o000010;
+#[cfg(target_os = "macos")]
+const ICANON: tcflag_t = 0x0000100;
+#[cfg(not(target_os = "macos"))]
 const ICANON: tcflag_t = 0o0000002;
 
 #[repr(C)]
@@ -32,9 +41,12 @@ extern "C" {
 
 const ESC: u8 = 0x1b;
 
-pub fn get_dimenions() -> Result<Dimensions, &'static str> {
+pub fn get_dimensions() -> Result<Dimensions, &'static str> {
     use std::mem;
 
+    #[cfg(target_os = "macos")]
+    const TIOCGWINSZ: i32 = 0x40087468;
+    #[cfg(not(target_os = "macos"))]
     const TIOCGWINSZ: i32 = 0x5413;
 
     struct Winsize {
