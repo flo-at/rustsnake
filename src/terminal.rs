@@ -4,9 +4,9 @@ use crate::frame_buffer::{Color, Pixel};
 use crate::types::{Dimensions, Position};
 
 type c_int = i32;
-#[allow(dead_code)]
+#[cfg(target_os = "macos")]
 type c_ulong = u64;
-#[allow(dead_code)]
+#[cfg(not(target_os = "macos"))]
 type c_uint = u32;
 type c_uchar = u8;
 
