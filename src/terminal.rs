@@ -24,7 +24,6 @@ const ICANON: tcflag_t = 0x0000100;
 const ICANON: tcflag_t = 0o0000002;
 
 #[repr(C)]
-#[derive(Debug)]
 struct Termios {
     c_iflag: tcflag_t,  // input modes
     c_oflag: tcflag_t,  // output modes
