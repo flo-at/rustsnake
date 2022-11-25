@@ -4,23 +4,27 @@ use crate::frame_buffer::{Color, Pixel};
 use crate::types::{Dimensions, Position};
 
 type c_int = i32;
+type c_ulong = u64;
 type c_uint = u32;
 type c_uchar = u8;
 
-pub type tcflag_t = c_uint;
+pub type tcflag_t = c_ulong;
 type cc_t = c_uchar;
 
 const NCCS: usize = 32;
-const ECHO: tcflag_t = 0o000010;
-const ICANON: tcflag_t = 0o0000002;
+const ECHO: tcflag_t = 0x00000008;
+const ICANON: tcflag_t = 0x0000100;
 
 #[repr(C)]
+#[derive(Debug)]
 struct Termios {
     c_iflag: tcflag_t,  // input modes
     c_oflag: tcflag_t,  // output modes
     c_cflag: tcflag_t,  // control modes
     c_lflag: tcflag_t,  // local modes
     c_cc: [cc_t; NCCS], // special characters
+    _ispeed: c_uint,
+    _ospeed: c_uint,
 }
 
 #[link(name = "c")]
@@ -35,7 +39,7 @@ const ESC: u8 = 0x1b;
 pub fn get_dimenions() -> Result<Dimensions, &'static str> {
     use std::mem;
 
-    const TIOCGWINSZ: i32 = 0x5413;
+    const TIOCGWINSZ: i32 = 0x40087468;
 
     struct Winsize {
         ws_row: u16,
